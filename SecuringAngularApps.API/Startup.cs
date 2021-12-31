@@ -7,6 +7,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SecuringAngularApps.API.Model;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
+using IdentityServer4.AccessTokenValidation;
 
 namespace SecuringAngularApps.API
 {
@@ -35,7 +39,27 @@ namespace SecuringAngularApps.API
                     .AllowCredentials();
                 });
             });
-            services.AddMvc();
+            /*services.AddAuthentication("Bearer").AddJwtBearer("Bearer", options =>
+                {
+                    options.Authority = "https://localhost:4242";
+                    options.Audience = "https://localhost:4242/resources";
+                    options.RequireHttpsMetadata = false;
+                });*/
+
+            services.AddAuthentication(IdentityServerAuthenticationDefaults.AuthenticationScheme).AddIdentityServerAuthentication(options =>
+            {
+                options.Authority = "https://localhost:4242";
+                options.ApiName = "https://localhost:4242/resources";
+                options.RequireHttpsMetadata = false;
+            });
+
+            services.AddMvc(options =>
+            {
+                var policy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+                options.Filters.Add(new AuthorizeFilter(policy));
+            });
 
         }
 
@@ -48,7 +72,8 @@ namespace SecuringAngularApps.API
             }
             app.UseCors("AllRequests");
             app.UseRouting();
-
+            app.UseAuthentication();
+            app.UseAuthorization();
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
